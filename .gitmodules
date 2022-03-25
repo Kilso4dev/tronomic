@@ -1,0 +1,6 @@
+[submodule "libs/egui_node_graph"]
+	path = libs/egui_node_graph
+	url = git@github.com:Kilso4dev/egui_node_graph.git
+[submodule "./libs/open-fixture-library"]
+	path = libs/open-fixture-library
+	url = git@github.com:OpenLightingProject/open-fixture-library.git

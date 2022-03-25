@@ -1,3 +1,16 @@
+diff --git a/egui_node_graph/Cargo.toml b/egui_node_graph/Cargo.toml
+index 6b54af4..e204600 100644
+--- a/egui_node_graph/Cargo.toml
++++ b/egui_node_graph/Cargo.toml
+@@ -15,7 +15,7 @@ workspace = ".."
+ persistence = ["serde", "slotmap/serde", "smallvec/serde", "egui/persistence"]
+ 
+ [dependencies]
+-egui = { version = "0.16" }
++egui = { version = "0.17" }
+ slotmap = { version = "1.0" }
+ smallvec = { version = "1.7.0" }
+ serde = { version = "1.0", optional = true, features = ["derive"] }
 diff --git a/egui_node_graph/src/editor_ui.rs b/egui_node_graph/src/editor_ui.rs
 index 2d0d68e..6918b94 100644
 --- a/egui_node_graph/src/editor_ui.rs
@@ -141,3 +154,35 @@ index 2d0d68e..6918b94 100644
                      fill: Color32::WHITE.lighten(0.8),
                      stroke: Stroke::none(),
                  })
+diff --git a/egui_node_graph/src/node_finder.rs b/egui_node_graph/src/node_finder.rs
+index 36f925a..201cecf 100644
+--- a/egui_node_graph/src/node_finder.rs
++++ b/egui_node_graph/src/node_finder.rs
+@@ -4,6 +4,7 @@ use crate::{color_hex_utils::*, NodeTemplateIter, NodeTemplateTrait};
+ 
+ use egui::*;
+ 
++#[derive(Debug, Clone)]
+ #[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
+ pub struct NodeFinder<NodeTemplate> {
+     pub query: String,
+diff --git a/egui_node_graph/src/ui_state.rs b/egui_node_graph/src/ui_state.rs
+index a2ccea1..50bfcd1 100644
+--- a/egui_node_graph/src/ui_state.rs
++++ b/egui_node_graph/src/ui_state.rs
+@@ -3,13 +3,14 @@ use super::*;
+ #[cfg(feature = "persistence")]
+ use serde::{Deserialize, Serialize};
+ 
+-#[derive(Copy, Clone)]
++#[derive(Debug, Copy, Clone)]
+ #[cfg_attr(feature = "persistence", derive(Serialize, Deserialize))]
+ pub struct PanZoom {
+     pub pan: egui::Vec2,
+     pub zoom: f32,
+ }
+ 
++#[derive(Debug, Clone)]
+ #[cfg_attr(feature = "persistence", derive(Serialize, Deserialize))]
+ pub struct GraphEditorState<NodeData, DataType, ValueType, NodeTemplate, UserState> {
+     pub graph: Graph<NodeData, DataType, ValueType>,

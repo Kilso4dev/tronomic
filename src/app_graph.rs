@@ -3,6 +3,7 @@ use egui_node_graph as eng;
 use egui_node_graph::NodeId;
 use super::graph::*;
 
+pub type NodeGraphType = eng::GraphEditorState<node::Node, port::GType, port::GVal, node::NodeTempl, MyGraphState>;
 
 // ========= First, define your user data types =============
 
@@ -121,8 +122,7 @@ impl eng::WidgetValueTrait for port::GVal {
                     ui.label(param_name);
                     egui::widgets::color_picker::show_color(ui, rgba, egui::vec2(20., 20.));
                     egui::widgets::color_picker::color_edit_button_rgba(ui, &mut rgba, egui::color_picker::Alpha::Opaque);
-
-                    c.0 = rgba.to_array();
+                    *c = rgba.into();
                 });
             }
         }
@@ -161,8 +161,6 @@ impl eng::NodeDataTrait for node::Node {
         responses
     }
 }
-
-pub type NodeGraphType = eng::GraphEditorState<node::Node, port::GType, port::GVal, node::NodeTempl, MyGraphState>;
 
 pub fn node_graph(state: &mut parking_lot::RwLockWriteGuard<NodeGraphType>, ui: &mut egui::Ui) {
     let graph_response = state.draw_graph_editor(ui, AllNodeTempl);

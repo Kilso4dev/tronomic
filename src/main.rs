@@ -149,7 +149,7 @@ async fn main() {
                 window_id,
             } if window_id == window.id() => match evt {
                 WindowEvent::CloseRequested
-                | WindowEvent::KeyboardInput {
+                /*| WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {
                             state: ElementState::Pressed,
@@ -157,7 +157,7 @@ async fn main() {
                             ..
                         },
                     ..
-                } => *ctrl_flow = ControlFlow::Exit,
+                }*/ => *ctrl_flow = ControlFlow::Exit,
                 WindowEvent::ScaleFactorChanged {
                     scale_factor,
                     new_inner_size,

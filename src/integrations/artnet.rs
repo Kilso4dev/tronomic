@@ -39,7 +39,7 @@ impl ArtnetConnection {
     }
 
     pub fn send_universe(&self, universe_id: usize, un: Universe) -> Result<(), DmGuiError> {
-        let data = un.channels.iter().map(|c| c.get()).collect::<Vec<u8>>().into();
+        let data = (0..255).map(|i| *un.get_channel(i).unwrap().get()).collect::<Vec<u8>>().into();
         let cmd = ap::ArtCommand::Output(ap::Output {
             data,
             ..ap::Output::default()

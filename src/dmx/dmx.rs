@@ -7,6 +7,7 @@ pub struct DmxState {
     pub universes: HashMap<usize, Universe>,
     pub fixt_next_id: usize,
     pub fixts: HashMap<usize, Fixture>,
+    pub fixt_groups: HashMap<usize, Vec<usize>>,
 }
 
 impl DmxState {
@@ -21,6 +22,7 @@ impl DmxState {
             },
             fixts: HashMap::new(),
             fixt_next_id: 0,
+            fixt_groups: HashMap::new(),
         }
     }
 
@@ -29,5 +31,8 @@ impl DmxState {
         self.fixt_next_id += 1;
         self.fixts.insert(new_id, new);
         new_id
+    }
+    pub fn remove_fixture(&mut self, id: usize) -> Option<Fixture> {
+        self.fixts.remove(&id)
     }
 }

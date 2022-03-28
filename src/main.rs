@@ -3,6 +3,7 @@ mod error;
 mod integrations;
 mod threads;
 mod asset;
+mod views;
 
 mod app;
 mod app_graph;
@@ -16,26 +17,39 @@ use env_logger;
 use epi::App;
 use std::time::Instant;
 use std::sync::Arc;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
 
+slotmap::new_key_type! {
+    pub struct TronConId;
+}
+
+#[derive(Debug, Clone)]
+pub struct TronomicState {
+    pub time: Arc<RwLock<Instant>>,
+    pub frame: Arc<RwLock<i64>>,
+    pub fps_outp: Arc<RwLock<f64>>,
+    pub fps_eval: Arc<RwLock<f64>>,
+    pub dmx_state: Arc<RwLock<dmx::DmxState>>,
+    pub connections: Arc<RwLock<slotmap::SlotMap<TronConId, integrations::TronCon>>>,
+    pub graph: Arc<RwLock<app_graph::NodeGraphType>>,
+}
+
 struct EguiState {
     platform: Platform,
     repaint_signal: std::sync::Arc<EguiRepaintSignal>,
     app: app::GuiApp,
-    time: Instant,
-    fps_outp: Arc<Mutex<f64>>,
-    fps_eval: Arc<Mutex<f64>>,
+    tron_state: TronomicState,
     //demo_app: egui_demo_lib::WrapApp,
 }
 
 impl gfx::Updatable for EguiState {
     fn update(&mut self, _size: winit::dpi::PhysicalSize<u32>, scale_factor: f64) {
-        self.platform.update_time(self.time.elapsed().as_secs_f64());
+        self.platform.update_time(self.tron_state.time.read().elapsed().as_secs_f64());
         self.platform.begin_frame();
         let app_out = epi::backend::AppOutput::default();
         let mut frame = epi::Frame::new(epi::backend::FrameData {
@@ -102,7 +116,7 @@ async fn main() {
 
         let style = egui::Style {
             debug: egui::style::DebugOptions {
-                debug_on_hover: false,
+                debug_on_hover: true,
                 show_expand_width: false,
                 show_expand_height: false,
                 show_resize: false,
@@ -110,15 +124,19 @@ async fn main() {
             ..egui::Style::default()
         };
 
-        let dmx = Arc::new(RwLock::new(dmx::DmxState::new(3)));
-        let node_graph = Arc::new(RwLock::new(egui_node_graph::GraphEditorState::new(1., app_graph::MyGraphState::default())));
-        let fps_eval = Arc::new(Mutex::new(0.));
-        let fps_outp = Arc::new(Mutex::new(0.));
+        let tron_state = TronomicState {
+            fps_eval: Arc::new(RwLock::new(0.)),
+            fps_outp: Arc::new(RwLock::new(0.)),
+            time: Arc::new(RwLock::new(Instant::now())),
+            frame: Arc::new(RwLock::new(0)),
+            dmx_state: Arc::new(RwLock::new(dmx::DmxState::new(3))),
+            connections: Arc::new(RwLock::new(slotmap::SlotMap::with_key())),
+            graph: Arc::new(RwLock::new(egui_node_graph::GraphEditorState::new(1., app_graph::MyGraphState::default()))),
+        };
 
         EguiState {
-            time: Instant::now(),
             repaint_signal: egui_statebuilder_repaint_sig,
-            app: app::GuiApp::new(dmx, fps_eval.clone(), fps_outp.clone(), node_graph),
+            app: app::GuiApp::new(tron_state.clone()),
             //demo_app: egui_demo_lib::WrapApp::default(),
             platform: Platform::new(PlatformDescriptor {
                 font_definitions: FontDefinitions::default(),
@@ -127,16 +145,12 @@ async fn main() {
                 scale_factor: window.scale_factor(),
                 style,
             }),
-            fps_outp,
-            fps_eval,
+            tron_state: tron_state.clone(),
         }
     };
 
-    let eval_mon = egui_state.fps_eval.clone();
-    let output_mon = egui_state.fps_outp.clone();
-
-    tokio::spawn(threads::output::output_send(50., output_mon));
-    tokio::spawn(threads::evaluation::process_eval(50., eval_mon));
+    tokio::spawn(threads::output::output_send(50., egui_state.tron_state.clone()));
+    tokio::spawn(threads::evaluation::process_eval(60., egui_state.tron_state.clone()));
 
     let mut state = gfx::State::new(&window, egui_state).await;
 

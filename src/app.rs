@@ -1,9 +1,7 @@
 use super::app_graph;
 use crate::dmx;
 use epi::App;
-use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum ScreenState {
@@ -17,13 +15,10 @@ enum ScreenState {
 
 #[derive(Debug, Clone)]
 pub struct GuiApp {
-    dmx: Arc<RwLock<dmx::DmxState>>,
-    fps_outp: Arc<Mutex<f64>>,
-    fps_eval: Arc<Mutex<f64>>,
+    tron_state: crate::TronomicState,
     screen_state: ScreenState,
     counter: i32,
     //graph_ctx: egui_node_graph::Context,
-    nodes: Arc<RwLock<super::app_graph::NodeGraphType>>,
 }
 
 impl App for GuiApp {
@@ -37,7 +32,7 @@ impl App for GuiApp {
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
-        ctx.set_pixels_per_point(ctx.pixels_per_point() * 2.);
+        //ctx.set_pixels_per_point(ctx.pixels_per_point() * 2.);
         /*
         let mut fontdefs = egui::FontDefinitions::default();
         let font_dat = &mut fontdefs.font_data;
@@ -68,7 +63,7 @@ impl App for GuiApp {
                 ui.label("Fixtures");
             }
             ScreenState::Nodetree => {
-                app_graph::node_graph(&mut self.nodes.write(), ui);
+                app_graph::node_graph(&mut self.tron_state.graph.write(), ui);
             }
             ScreenState::Output => {
                 ui.label("Output configuration");
@@ -80,7 +75,7 @@ impl App for GuiApp {
                 ui.label("Live environment");
             }
             ScreenState::Plain => {
-                Self::sliders_ui(ui, &mut self.dmx.write());
+                Self::sliders_ui(ui, &mut self.tron_state.dmx_state.write());
             }
         });
 
@@ -93,18 +88,12 @@ impl App for GuiApp {
 
 impl GuiApp {
     pub fn new(
-        dmx: Arc<RwLock<dmx::DmxState>>,
-        fps_eval: Arc<Mutex<f64>>,
-        fps_outp: Arc<Mutex<f64>>,
-        nodes: Arc<RwLock<super::app_graph::NodeGraphType>>,
+        tron_state: super::TronomicState,
     ) -> Self {
         Self {
-            dmx,
-            fps_eval,
-            fps_outp,
+            tron_state,
             counter: 0,
             screen_state: ScreenState::Fixtures,
-            nodes,
         }
     }
 
@@ -165,9 +154,9 @@ impl GuiApp {
                 ui.separator();
                 egui::warn_if_debug_build(ui);
                 ui.spacing();
-                ui.label(format!("Eval {:4.3}", *self.fps_eval.lock()));
+                ui.label(format!("Eval {:4.3}", *self.tron_state.fps_eval.read()));
                 ui.spacing();
-                ui.label(format!("Out {:4.3}", *self.fps_outp.lock()));
+                ui.label(format!("Out {:4.3}", *self.tron_state.fps_outp.read()));
                 ui.spacing();
             });
         });
@@ -178,14 +167,19 @@ impl GuiApp {
         dmx_state: &mut parking_lot::RwLockWriteGuard<'_, dmx::DmxState>,
     ) {
         egui::ScrollArea::both()
-            .auto_shrink([false, false])
+            .auto_shrink([true; 2])
             .show(ui, |ui| {
                 ui.vertical(|ui| {
                     for (un_id, un) in dmx_state.universes.iter_mut() {
                         ui.vertical(|ui| ui.label(format!("{un_id}")));
                         ui.horizontal(|ui| {
-                            for (i, chan) in un.channels.iter_mut().enumerate() {
-                                GuiApp::one_slider_ui(ui, i + 1, chan);
+                            for i in 0..512 {
+                                let c_val = un.get(i);
+                                let mut new = c_val;
+                                GuiApp::one_slider_ui(ui, i + 1, &mut new);
+                                if c_val != new {
+                                    un.set(i, new);
+                                }
                             }
                         });
                     }
@@ -193,15 +187,16 @@ impl GuiApp {
             });
     }
 
-    fn one_slider_ui(ui: &mut egui::Ui, i: usize, chan: &mut dmx::Channel) {
+    fn one_slider_ui(ui: &mut egui::Ui, i: usize, chan: &mut u8) {
         ui.group(|ui| {
-            ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
+            ui.with_layout(egui::Layout::top_down(egui::Align::Center).with_cross_justify(false).with_main_justify(false), |ui| {
                 ui.add(egui::Label::new(i.to_string()).wrap(false));
                 ui.add(
-                    egui::Slider::new(&mut chan.val, 0..=u8::MAX)
-                        .vertical()
-                        .show_value(true),
+                    egui::Slider::new(chan, 0..=u8::MAX)
+                        .show_value(false)
+                        .vertical(),
                 );
+                ui.add(egui::DragValue::new(chan))
             });
         });
     }
